@@ -41,6 +41,24 @@ npm start
 
 SQLite 数据库、运行日志和上传图片属于本地运行产物，已通过 `.gitignore` 排除。服务启动后会自动创建本地数据库。
 
+## Vercel 部署
+
+这个仓库是双站点结构，建议在 Vercel 中创建两个 Project，均从同一个 GitHub 仓库导入：
+
+1. 主站 Project
+   - Root Directory：`main-site`
+   - Framework Preset：Other
+   - Production Branch：`master`
+   - 环境变量：`DEEPSEEK_API_KEY`、`AMAP_API_KEY`、`SUBMISSION_PORTAL_URL`、`SUBMISSION_ADMIN_TOKEN`
+
+2. 申报副站 Project
+   - Root Directory：`submission-portal`
+   - Framework Preset：Other
+   - Production Branch：`master`
+   - 环境变量：`ADMIN_TOKEN`
+
+Vercel 会识别每个目录根部的 `server.js` 作为 Node.js HTTP server。线上 SQLite 会使用临时目录，适合作品展示和功能演示；如果要长期收集真实申报数据，建议后续替换为 Vercel Postgres、Supabase 或其他云数据库。
+
 ## 主要功能
 
 - 按出行天数、预算、人群、体验偏好生成乡村文旅路线。
