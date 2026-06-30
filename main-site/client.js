@@ -34,6 +34,11 @@ const State = {
   resourceFilter: "all",
 };
 
+const DynamicMaps = {
+  instances: new Map(),
+  signatures: new Map(),
+};
+
 document.addEventListener("DOMContentLoaded", initApp);
 
 async function initApp() {
@@ -95,6 +100,8 @@ function render(options = {}) {
     renderShellLoading();
     return;
   }
+
+  destroyAllMaps();
 
   if (State.view === "planner") app.innerHTML = renderPlanner();
   if (State.view === "villages") app.innerHTML = renderVillages();
@@ -416,7 +423,7 @@ function renderMapAndLiveInfo(plan) {
       <div class="map-card">
         <div class="card-title">
           <i data-lucide="map-pinned"></i>
-          <h2>高德路线地图</h2>
+          <h2>动态路线地图</h2>
         </div>
         <div id="planMap" class="map-surface"></div>
       </div>
@@ -854,7 +861,7 @@ function renderVillageCard(village) {
   const spots = village.spots || [];
   const spotPreview = spots.slice(0, 3).map((spot) => `<span>${escapeHtml(spot.name)}</span>`).join("");
   return `
-    <article class="village-card">
+    <article class="village-card" data-village-card="${escapeAttr(village.id)}">
       <img ${imageAttrs(village.cover, village.name)} loading="lazy">
       <div class="village-content">
         <div class="village-topline">
@@ -875,6 +882,7 @@ function renderVillageCard(village) {
           <div><dt>资源</dt><dd>${escapeHtml((village.resources || []).slice(0, 3).join("、"))}</dd></div>
         </dl>
         <div class="button-row">
+          <button class="secondary-action full" data-focus-village-map="${escapeAttr(village.id)}"><i data-lucide="map-pin"></i><span>定位</span></button>
           <button class="secondary-action full" data-village-detail="${escapeAttr(village.id)}"><i data-lucide="panel-top-open"></i><span>画像</span></button>
           <button class="secondary-action full" data-plan-village="${escapeAttr(village.id)}"><i data-lucide="route"></i><span>用它规划</span></button>
         </div>
@@ -1144,7 +1152,7 @@ function renderEvidence() {
         <p>${escapeHtml(State.data.meta.note || "")}</p>
         <div class="api-box">
           <strong>API接入方式</strong>
-          <span>AI：DeepSeek Chat Completions；天气：Open-Meteo；路线：${escapeHtml(State.data.runtime?.routeProvider || "高德 Web服务 + 本地兜底")}；地图：高德静态图代理；数据持久化：SQLite。</span>
+          <span>AI：DeepSeek Chat Completions；天气：Open-Meteo；路线：${escapeHtml(State.data.runtime?.routeProvider || "高德 Web服务 + 本地兜底")}；地图：Leaflet动态底图 + 高德路线估算；数据持久化：SQLite。</span>
         </div>
       </section>
     </section>
@@ -1423,61 +1431,209 @@ function closeModal() {
 function renderPlanMap() {
   const el = document.querySelector("#planMap");
   if (!el || !State.currentPlan?.villages?.length) return;
-  renderAmapStaticMap(el, State.currentPlan.villages, {
-    alt: "高德静态路线地图",
-    providerText: "高德地图 Web服务 · 路线按驾车时间校准",
-    path: true,
-    size: "760*360",
+  renderDynamicMap(el, State.currentPlan.villages, {
+    key: "plan",
+    mode: "route",
+    transfers: State.currentPlan.transfers || [],
+    providerText: "动态地图 · 拖拽缩放查看路线，高德Web服务校准车程",
   });
 }
 
 function renderVillageMap() {
   const el = document.querySelector("#villageMap");
   if (!el) return;
-  renderAmapStaticMap(el, getFilteredVillages(), {
-    alt: "高德静态村镇库地图",
-    providerText: "高德地图 Web服务 · 村镇库定位（静态图显示前10个定位点）",
-    path: false,
-    size: "1000*420",
-    location: "110.5,32.5",
-    zoom: "4",
-    markerLimit: 10,
+  renderDynamicMap(el, getFilteredVillages(), {
+    key: "villages",
+    mode: "catalog",
+    providerText: "动态村镇库 · 点击点位查看画像，滚轮缩放，拖拽浏览全国分布",
   });
 }
 
-function renderAmapStaticMap(el, villages, options = {}) {
-  const labels = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const markers = villages
-    .slice(0, options.markerLimit || 10)
-    .map((village, index) => `mid,0x3f6f57,${labels[index]}:${village.lng},${village.lat}`)
-    .join("|");
-  const paths = options.path !== false && villages.length > 1
-    ? `4,0x3f6f57,0.9,,:${villages.map((village) => `${village.lng},${village.lat}`).join(";")}`
-    : "";
-  const params = new URLSearchParams({
-    markers,
-    size: options.size || "760*360",
+function renderDynamicMap(el, villages, options = {}) {
+  const points = villages.filter((village) => Number.isFinite(Number(village.lat)) && Number.isFinite(Number(village.lng)));
+  const mapKey = options.key || el.id || "map";
+  if (!window.L) {
+    el.innerHTML = `<div class="map-fallback">动态地图资源暂未加载，刷新页面后重试。</div>`;
+    return;
+  }
+  if (!points.length) {
+    el.innerHTML = `<div class="map-fallback">当前筛选下没有可定位村镇。</div>`;
+    destroyMap(mapKey);
+    return;
+  }
+
+  const signature = mapSignature(points, options);
+  const existingMap = DynamicMaps.instances.get(mapKey);
+  if (existingMap && DynamicMaps.signatures.get(mapKey) === signature && el.querySelector(".leaflet-stage")) {
+    existingMap.invalidateSize();
+    return;
+  }
+
+  el.innerHTML = `<div class="leaflet-stage" id="${escapeAttr(el.id)}Canvas"></div><div class="map-provider">${escapeHtml(options.providerText || "动态地图")}</div>`;
+  destroyMap(mapKey);
+
+  const map = L.map(`${el.id}Canvas`, {
+    zoomControl: true,
+    scrollWheelZoom: true,
+    attributionControl: false,
   });
-  if (paths) params.set("paths", paths);
-  if (options.location) params.set("location", options.location);
-  if (options.zoom) params.set("zoom", options.zoom);
-  const mapUrl = Api.url(`/api/map/static?${params.toString()}`);
-  el.innerHTML = `
-    <img class="amap-static" src="${escapeAttr(mapUrl)}" alt="${escapeAttr(options.alt || "高德静态地图")}">
-    <div class="map-provider">${escapeHtml(options.providerText || "高德地图 Web服务")}</div>
+  DynamicMaps.instances.set(mapKey, map);
+  DynamicMaps.signatures.set(mapKey, signature);
+
+  L.tileLayer("https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}", {
+    subdomains: ["1", "2", "3", "4"],
+    maxZoom: 18,
+    minZoom: 3,
+  }).addTo(map);
+
+  const bounds = [];
+  const markers = [];
+  points.forEach((village, index) => {
+    const latLng = [Number(village.lat), Number(village.lng)];
+    bounds.push(latLng);
+    const marker = L.marker(latLng, { icon: createVillageIcon(index, options.mode) })
+      .addTo(map)
+      .bindPopup(renderMapPopup(village, index, options.mode), { maxWidth: 280 });
+    marker.on("click", () => highlightVillageCard(village.id));
+    markers.push(marker);
+  });
+
+  if (options.mode === "route" && points.length > 1) {
+    const routeLine = L.polyline(bounds, {
+      color: "#3f6f57",
+      weight: 5,
+      opacity: 0.88,
+      lineJoin: "round",
+    }).addTo(map);
+    L.polyline(bounds, {
+      color: "#fffdf8",
+      weight: 2,
+      opacity: 0.82,
+      dashArray: "6 8",
+    }).addTo(map);
+    points.slice(0, -1).forEach((village, index) => {
+      const to = points[index + 1];
+      const transfer = (options.transfers || [])[index];
+      const segment = L.polyline(
+        [
+          [Number(village.lat), Number(village.lng)],
+          [Number(to.lat), Number(to.lng)],
+        ],
+        {
+          color: "#b98234",
+          weight: 9,
+          opacity: 0.02,
+        }
+      ).addTo(map);
+      segment.bindTooltip(
+        transfer ? `${transfer.from} → ${transfer.to} · ${transfer.distanceKm}km · 约${transfer.minutes}分钟` : `${village.name} → ${to.name}`,
+        { sticky: true }
+      );
+    });
+    map.fitBounds(routeLine.getBounds().pad(0.28));
+  } else if (bounds.length === 1) {
+    map.setView(bounds[0], 10);
+  } else {
+    map.fitBounds(bounds, { padding: [28, 28], maxZoom: options.mode === "catalog" ? 8 : 12 });
+  }
+
+  if (options.mode === "route") renderRouteMapList(el, points, markers);
+  if (options.mode === "catalog") bindVillageCardMapFocus(map, markers, points);
+
+  window.setTimeout(() => map.invalidateSize(), 80);
+}
+
+function destroyMap(mapKey) {
+  const existing = DynamicMaps.instances.get(mapKey);
+  if (existing) existing.remove();
+  DynamicMaps.instances.delete(mapKey);
+  DynamicMaps.signatures.delete(mapKey);
+}
+
+function destroyAllMaps() {
+  DynamicMaps.instances.forEach((map) => map.remove());
+  DynamicMaps.instances.clear();
+  DynamicMaps.signatures.clear();
+}
+
+function mapSignature(points, options = {}) {
+  return [
+    options.mode || "map",
+    points.map((village) => `${village.id}:${Number(village.lat).toFixed(5)},${Number(village.lng).toFixed(5)}`).join("|"),
+    (options.transfers || []).map((item) => `${item.from}-${item.to}-${item.minutes}`).join("|"),
+  ].join("::");
+}
+
+function createVillageIcon(index, mode) {
+  const label = mode === "route" ? index + 1 : "乡";
+  return L.divIcon({
+    className: "village-map-marker",
+    html: `<span><b>${escapeHtml(label)}</b></span>`,
+    iconSize: [34, 42],
+    iconAnchor: [17, 38],
+    popupAnchor: [0, -34],
+  });
+}
+
+function renderMapPopup(village, index, mode) {
+  const tags = (village.tags || []).slice(0, 3).map((id) => State.data.experienceTags.find((tag) => tag.id === id)?.name || id).join(" / ");
+  const openAmap = `https://uri.amap.com/marker?position=${encodeURIComponent(`${village.lng},${village.lat}`)}&name=${encodeURIComponent(village.name)}`;
+  return `
+    <div class="map-popup">
+      <span>${escapeHtml(mode === "route" ? `第${index + 1}站` : village.province)}</span>
+      <strong>${escapeHtml(village.name)}</strong>
+      <p>${escapeHtml(village.label || village.address || "")}</p>
+      <small>${escapeHtml(tags || village.city || "")}</small>
+      <a href="${escapeAttr(openAmap)}" target="_blank" rel="noopener">在高德打开</a>
+    </div>
   `;
-  el.querySelector(".amap-static")?.addEventListener("error", () => {
-    if (options.path === false && !options.retried && villages.length > 5) {
-      renderAmapStaticMap(el, villages, {
-        ...options,
-        markerLimit: 5,
-        providerText: String(options.providerText || "高德地图 Web服务").replace(/前\d+个定位点/, "前5个定位点"),
-        retried: true,
-      });
-      return;
-    }
-    el.innerHTML = `<div class="map-fallback">高德静态地图暂时没有返回图片；距离、时间和路线仍会按高德 Web 服务参与计算。</div>`;
+}
+
+function renderRouteMapList(el, villages, markers = []) {
+  const list = document.createElement("div");
+  list.className = "map-route-list";
+  list.innerHTML = villages.map((village, index) => `
+    <button type="button" data-route-map-stop="${escapeAttr(village.id)}">
+      <span>${index + 1}</span>
+      <strong>${escapeHtml(village.name)}</strong>
+    </button>
+  `).join("");
+  el.appendChild(list);
+  list.querySelectorAll("[data-route-map-stop]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const village = villages.find((item) => item.id === button.dataset.routeMapStop);
+      const map = DynamicMaps.instances.get("plan");
+      if (!village || !map) return;
+      map.flyTo([Number(village.lat), Number(village.lng)], Math.max(map.getZoom(), 11), { duration: 0.7 });
+      markers[villages.indexOf(village)]?.openPopup();
+    });
   });
+}
+
+function bindVillageCardMapFocus(map, markers, villages) {
+  document.querySelectorAll("[data-focus-village-map]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const index = villages.findIndex((village) => village.id === button.dataset.focusVillageMap);
+      if (index === -1) return;
+      const village = villages[index];
+      map.flyTo([Number(village.lat), Number(village.lng)], 11, { duration: 0.7 });
+      markers[index]?.openPopup();
+      highlightVillageCard(village.id);
+    });
+  });
+}
+
+function highlightVillageCard(villageId) {
+  const card = document.querySelector(`[data-village-card="${escapeCssIdentifier(villageId)}"]`);
+  if (!card) return;
+  card.classList.add("is-map-active");
+  card.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  window.setTimeout(() => card.classList.remove("is-map-active"), 1600);
+}
+
+function escapeCssIdentifier(value) {
+  if (window.CSS?.escape) return CSS.escape(String(value));
+  return String(value).replace(/["\\]/g, "\\$&");
 }
 
 function toast(message) {
