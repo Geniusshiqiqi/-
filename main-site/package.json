@@ -9,6 +9,6 @@
     "check": "node --check server.js && node --check data.js && node --check services.js && node --check app.js"
   },
   "engines": {
-    "node": ">=24"
+    "node": "24.x"
   }
 }

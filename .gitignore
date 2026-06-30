@@ -8,5 +8,6 @@ uploads/
 *.log
 node_modules/
 .codex-temp/
+.vercel/
 .DS_Store
 Thumbs.db
