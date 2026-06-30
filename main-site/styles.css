@@ -57,6 +57,25 @@ body.modal-open {
   overflow: hidden;
 }
 
+.skip-link {
+  position: fixed;
+  left: 14px;
+  top: 12px;
+  z-index: 100;
+  transform: translateY(-140%);
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: #fff;
+  font-weight: 850;
+  text-decoration: none;
+  transition: transform 0.18s ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
 button,
 input,
 select,
@@ -177,6 +196,12 @@ textarea:focus-visible {
 .nav-link-btn:hover {
   background: var(--green-2);
   color: var(--green);
+}
+
+.nav-link-btn.disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 .nav-btn.active {
@@ -386,8 +411,12 @@ textarea {
 }
 
 button:disabled {
-  cursor: wait;
+  cursor: not-allowed;
   opacity: 0.72;
+}
+
+.lucide-loader-circle {
+  animation: spin 0.8s linear infinite;
 }
 
 .range-field {
@@ -811,6 +840,32 @@ input[type="range"] {
   color: var(--muted);
   font-size: 12px;
   font-weight: 760;
+}
+
+.map-hint {
+  position: absolute;
+  left: 58px;
+  top: 10px;
+  z-index: 450;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: min(420px, calc(100% - 20px));
+  padding: 7px 9px;
+  border: 1px solid rgba(63, 111, 87, 0.16);
+  border-radius: 7px;
+  background: rgba(255, 253, 248, 0.94);
+  color: #486052;
+  box-shadow: 0 10px 24px rgba(34, 39, 35, 0.1);
+  font-size: 12px;
+  font-weight: 820;
+}
+
+.map-hint svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  color: var(--green);
 }
 
 .map-fallback {
@@ -1353,6 +1408,27 @@ input[type="range"] {
 .empty-note {
   color: var(--muted);
   font-size: 12px;
+}
+
+.storage-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin-top: 10px;
+  padding: 9px;
+  border: 1px solid rgba(70, 111, 145, 0.15);
+  border-radius: var(--radius);
+  background: var(--blue-2);
+  color: #35556f;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.storage-note svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  margin-top: 1px;
 }
 
 .view-stack {
@@ -2347,6 +2423,17 @@ input[type="range"] {
 
   .modal-body {
     padding: 16px;
+  }
+
+  .map-hint {
+    left: 54px;
+    right: 10px;
+    font-size: 11px;
+  }
+
+  .map-provider {
+    max-width: calc(100% - 20px);
+    font-size: 11px;
   }
 }
 

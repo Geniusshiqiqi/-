@@ -38,7 +38,8 @@ const mime = {
 };
 
 const server = http.createServer(async (req, res) => {
-  setCorsHeaders(res);
+  setSecurityHeaders(res);
+  setCorsHeaders(req, res);
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
 
@@ -1734,6 +1735,7 @@ function slugify(value) {
 
 function createFeedback(payload) {
   const content = requiredText(payload.content, "反馈内容");
+  const contact = String(payload.contact || "").trim().slice(0, 80);
   const id = `feedback-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
   const now = new Date().toISOString();
   db.prepare("INSERT INTO feedback (id, type, content, contact, data, created_at) VALUES (?, ?, ?, ?, ?, ?)")
@@ -1741,8 +1743,8 @@ function createFeedback(payload) {
       id,
       String(payload.type || "general").slice(0, 30),
       content,
-      String(payload.contact || "").slice(0, 80),
-      JSON.stringify(payload),
+      contact ? maskContact(contact) : "",
+      JSON.stringify({ ...payload, contact: contact ? maskContact(contact) : "" }),
       now
     );
   return { ok: true, id, createdAt: now, message: "反馈已保存。" };
@@ -1844,8 +1846,9 @@ function seedDatabase() {
 function serveStatic(pathname, res) {
   const safePath = decodeURIComponent(pathname === "/" ? "/index.html" : pathname);
   const filePath = path.normalize(path.join(root, safePath));
+  const relativePath = path.relative(root, filePath);
 
-  if (!filePath.startsWith(root)) {
+  if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
     res.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" });
     res.end("Forbidden");
     return;
@@ -1867,15 +1870,40 @@ function serveStatic(pathname, res) {
 }
 
 function sendJson(res, status, data) {
-  res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
+  res.writeHead(status, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store",
+  });
   res.end(JSON.stringify(data));
 }
 
-function setCorsHeaders(res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+function setSecurityHeaders(res) {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+}
+
+function setCorsHeaders(req, res) {
+  const origin = req.headers.origin || "";
+  if (isAllowedCorsOrigin(origin, req.headers.host)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+  }
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   res.setHeader("Access-Control-Max-Age", "86400");
+}
+
+function isAllowedCorsOrigin(origin, host = "") {
+  if (!origin) return false;
+  if (origin === "null") return true;
+  try {
+    const parsed = new URL(origin);
+    if (parsed.host === host) return true;
+    return ["127.0.0.1", "localhost", "::1"].includes(parsed.hostname);
+  } catch {
+    return false;
+  }
 }
 
 function readJson(req) {

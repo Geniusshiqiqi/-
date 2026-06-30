@@ -3,6 +3,7 @@ const State = {
   ready: false,
   generating: false,
   intaking: false,
+  savingPlan: false,
   syncingSubmissions: false,
   data: {
     meta: window.RuralData?.meta || {},
@@ -67,7 +68,17 @@ async function initApp() {
 function updateSubmissionPortalLink() {
   const link = document.querySelector("#submissionPortalLink");
   if (!link) return;
-  link.href = State.data.runtime?.submissionPortalUrl || "http://127.0.0.1:5184/";
+  const portalUrl = getSubmissionPortalUrl();
+  link.href = portalUrl || "#";
+  link.classList.toggle("disabled", !portalUrl);
+  link.toggleAttribute("aria-disabled", !portalUrl);
+  link.title = portalUrl ? "打开村镇资源申报副站" : "申报副站部署后可在这里接入";
+}
+
+function getSubmissionPortalUrl() {
+  const url = String(State.data.runtime?.submissionPortalUrl || "").trim();
+  if (!url || url === "http://127.0.0.1:5184/") return window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost" ? url : "";
+  return url;
 }
 
 function bindGlobalNav() {
@@ -81,7 +92,7 @@ function bindGlobalNav() {
 
 function renderShellLoading() {
   document.querySelector("#app").innerHTML = `
-    <section class="loading-state">
+    <section class="loading-state" role="status" aria-live="polite">
       <div class="loading-mark"></div>
       <h1>正在连接乡村文旅数据服务</h1>
       <p>加载村镇库、资源库、天气与AI规划能力。</p>
@@ -92,10 +103,15 @@ function renderShellLoading() {
 function render(options = {}) {
   const shouldScroll = options.scroll !== false;
   document.querySelectorAll(".nav-btn").forEach((button) => {
-    button.classList.toggle("active", button.dataset.view === State.view);
+    const active = button.dataset.view === State.view;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+    if (active) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
   });
 
   const app = document.querySelector("#app");
+  app.setAttribute("aria-busy", String(State.generating || State.intaking || State.savingPlan || State.syncingSubmissions));
   if (!State.ready) {
     renderShellLoading();
     return;
@@ -405,9 +421,9 @@ function renderPlanSummary(plan) {
         <span>生成方式</span>
         <strong>${aiLabel}</strong>
       </div>
-      <button class="secondary-action" id="savePlan">
-        <i data-lucide="save"></i>
-        <span>保存</span>
+      <button class="secondary-action" id="savePlan" ${State.savingPlan ? "disabled" : ""}>
+        <i data-lucide="${State.savingPlan ? "loader-circle" : "save"}"></i>
+        <span>${State.savingPlan ? "保存中..." : "保存"}</span>
       </button>
       <button class="secondary-action" id="openBooking">
         <i data-lucide="clipboard-plus"></i>
@@ -593,11 +609,15 @@ function renderSavedPlans() {
       <div class="card-title"><i data-lucide="folder-check"></i><h2>已保存方案</h2></div>
       <div class="saved-list">
         ${State.data.plans.length ? State.data.plans.slice(0, 4).map((plan) => `
-          <button class="saved-plan" data-load-plan="${escapeAttr(plan.id)}">
+          <button class="saved-plan" type="button" data-load-plan="${escapeAttr(plan.id)}">
             <strong>${escapeHtml(plan.title)}</strong>
             <span>${escapeHtml(plan.generatedAt || plan.createdAt || "")} · ¥${plan.cost?.total || "?"}</span>
           </button>
         `).join("") : `<p class="empty-note">暂无保存方案</p>`}
+      </div>
+      <div class="storage-note">
+        <i data-lucide="info"></i>
+        <span>保存到当前站点数据库；演示环境适合交互展示，长期运营建议接入云数据库。</span>
       </div>
     </section>
   `;
@@ -684,17 +704,26 @@ function bindFormControls() {
 }
 
 function syncFormFromControls() {
-  State.form.days = clamp(Number(document.querySelector("#daysInput")?.value) || 3, 1, 7);
-  State.form.budget = clamp(Number(document.querySelector("#budgetInput")?.value) || 980, 300, 8000);
+  const daysInput = document.querySelector("#daysInput");
+  const budgetInput = document.querySelector("#budgetInput");
+  const budgetRange = document.querySelector("#budgetRange");
+  const groupSizeInput = document.querySelector("#groupSizeInput");
+  State.form.days = clamp(Number(daysInput?.value) || 3, 1, 7);
+  State.form.budget = clamp(Number(budgetInput?.value) || 980, 300, 8000);
   State.form.pace = document.querySelector("#paceSelect")?.value || "balanced";
   State.form.region = document.querySelector("#regionSelect")?.value || "all";
   State.form.departure = document.querySelector("#departureInput")?.value || "";
-  State.form.groupSize = clamp(Number(document.querySelector("#groupSizeInput")?.value) || 2, 1, 80);
+  State.form.groupSize = clamp(Number(groupSizeInput?.value) || 2, 1, 80);
   State.form.startDate = document.querySelector("#startDateInput")?.value || "";
   State.form.note = document.querySelector("#noteInput")?.value || State.form.note || "";
+  if (daysInput) daysInput.value = State.form.days;
+  if (budgetInput) budgetInput.value = State.form.budget;
+  if (budgetRange) budgetRange.value = State.form.budget;
+  if (groupSizeInput) groupSizeInput.value = State.form.groupSize;
 }
 
 async function regeneratePlan() {
+  if (State.generating) return;
   syncFormFromControls();
   State.generating = true;
   render();
@@ -788,18 +817,24 @@ function looksLikeLoosePlace(value = "") {
 }
 
 async function saveCurrentPlan() {
+  if (State.savingPlan || !State.currentPlan) return;
+  State.savingPlan = true;
+  render({ scroll: false });
   try {
     const result = await Api.savePlan(State.currentPlan);
     const bootstrap = await Api.bootstrap();
     State.data.plans = bootstrap.plans;
-    toast(`已保存到本地数据库：${result.title}`);
-    render();
+    toast(`已保存到当前网站数据库：${result.title}`);
   } catch (error) {
     toast(`保存失败：${error.message}`);
+  } finally {
+    State.savingPlan = false;
+    render({ scroll: false });
   }
 }
 
 function renderVillages() {
+  const portalUrl = getSubmissionPortalUrl();
   const provinces = ["all", ...new Set(State.data.villages.map((item) => item.province))];
   const filtered = getFilteredVillages();
   const provinceCount = new Set(State.data.villages.map((item) => item.province)).size;
@@ -813,9 +848,15 @@ function renderVillages() {
           <p>村镇数据来自本地SQLite，支持按省份、关键词、体验标签筛选；后续可继续批量导入官方名录。</p>
         </div>
         <div class="toolbar">
-          <a class="secondary-action compact" href="${escapeAttr(State.data.runtime?.submissionPortalUrl || "http://127.0.0.1:5184/")}" target="_blank" rel="noopener">
-            <i data-lucide="file-plus-2"></i><span>村镇自荐入口</span>
-          </a>
+          ${portalUrl ? `
+            <a class="secondary-action compact" href="${escapeAttr(portalUrl)}" target="_blank" rel="noopener noreferrer">
+              <i data-lucide="file-plus-2"></i><span>村镇自荐入口</span>
+            </a>
+          ` : `
+            <button class="secondary-action compact" type="button" disabled title="申报副站部署后可接入">
+              <i data-lucide="file-plus-2"></i><span>自荐入口待接入</span>
+            </button>
+          `}
           <button class="secondary-action compact" id="syncApprovedSubmissions" ${State.syncingSubmissions ? "disabled" : ""}>
             <i data-lucide="${State.syncingSubmissions ? "loader-circle" : "database-zap"}"></i><span>${State.syncingSubmissions ? "同步中" : "同步申报入库"}</span>
           </button>
@@ -1210,16 +1251,21 @@ function openBookingModal(plan) {
   `);
   document.querySelector("#bookingForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
+    const form = event.currentTarget;
+    const submitButton = form.querySelector("button[type='submit']");
+    setSubmitLoading(submitButton, true, "保存中...");
     const data = Object.fromEntries(new FormData(event.currentTarget));
     try {
       await Api.createBooking({ ...data, plan });
       const bootstrap = await Api.bootstrap();
       State.data.bookings = bootstrap.bookings;
       closeModal();
-      toast("需求记录已保存");
+      toast("需求记录已保存，可在“需求记录”页面查看");
       if (State.view === "bookings") render();
     } catch (error) {
       toast(`提交失败：${error.message}`);
+    } finally {
+      setSubmitLoading(submitButton, false);
     }
   });
 }
@@ -1370,16 +1416,20 @@ function openResourceModal() {
   `);
   document.querySelector("#resourceForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
+    const submitButton = event.currentTarget.querySelector("button[type='submit']");
+    setSubmitLoading(submitButton, true, "保存中...");
     const data = Object.fromEntries(new FormData(event.currentTarget));
     try {
       await Api.submitResource({ ...data, fit: State.form.tags, estimateIncome: 0, risk: "学生项目记录，需后续核验" });
       const bootstrap = await Api.bootstrap();
       State.data.resources = bootstrap.resources;
       closeModal();
-      toast("资源记录已保存");
+      toast("资源记录已保存，可在“资源匹配”中查看");
       render();
     } catch (error) {
       toast(`提交失败：${error.message}`);
+    } finally {
+      setSubmitLoading(submitButton, false);
     }
   });
 }
@@ -1402,12 +1452,16 @@ function openFeedbackModal() {
   `);
   document.querySelector("#feedbackForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
+    const submitButton = event.currentTarget.querySelector("button[type='submit']");
+    setSubmitLoading(submitButton, true, "提交中...");
     try {
       await Api.submitFeedback(Object.fromEntries(new FormData(event.currentTarget)));
       closeModal();
       toast("反馈已保存");
     } catch (error) {
       toast(`提交失败：${error.message}`);
+    } finally {
+      setSubmitLoading(submitButton, false);
     }
   });
 }
@@ -1420,12 +1474,32 @@ function openModal(html) {
   root.querySelector(".modal-backdrop")?.addEventListener("click", (event) => {
     if (event.target.classList.contains("modal-backdrop")) closeModal();
   });
+  document.addEventListener("keydown", handleModalKeydown);
+  root.querySelector("input, select, textarea, button:not(.modal-close)")?.focus({ preventScroll: true });
   refreshIcons();
 }
 
 function closeModal() {
   document.querySelector("#modalRoot").innerHTML = "";
   document.body.classList.remove("modal-open");
+  document.removeEventListener("keydown", handleModalKeydown);
+}
+
+function handleModalKeydown(event) {
+  if (event.key === "Escape") closeModal();
+}
+
+function setSubmitLoading(button, loading, label) {
+  if (!button) return;
+  if (loading) {
+    button.dataset.originalHtml = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = `<i data-lucide="loader-circle"></i><span>${escapeHtml(label || "提交中...")}</span>`;
+  } else {
+    button.disabled = false;
+    if (button.dataset.originalHtml) button.innerHTML = button.dataset.originalHtml;
+  }
+  refreshIcons();
 }
 
 function renderPlanMap() {
@@ -1469,7 +1543,11 @@ function renderDynamicMap(el, villages, options = {}) {
     return;
   }
 
-  el.innerHTML = `<div class="leaflet-stage" id="${escapeAttr(el.id)}Canvas"></div><div class="map-provider">${escapeHtml(options.providerText || "动态地图")}</div>`;
+  el.innerHTML = `
+    <div class="leaflet-stage" id="${escapeAttr(el.id)}Canvas"></div>
+    <div class="map-provider">${escapeHtml(options.providerText || "动态地图")}</div>
+    <div class="map-hint"><i data-lucide="mouse-pointer-click"></i><span>${escapeHtml(options.hintText || "点击点位看详情，拖拽或缩放查看周边")}</span></div>
+  `;
   destroyMap(mapKey);
 
   const map = L.map(`${el.id}Canvas`, {
@@ -1541,6 +1619,7 @@ function renderDynamicMap(el, villages, options = {}) {
   if (options.mode === "catalog") bindVillageCardMapFocus(map, markers, points);
 
   window.setTimeout(() => map.invalidateSize(), 80);
+  refreshIcons();
 }
 
 function destroyMap(mapKey) {

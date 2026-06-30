@@ -3,19 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>乡行共创 · AI乡村文旅规划台</title>
-<link rel="preconnect" href="https://images.unsplash.com">
-<link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
-<link rel="stylesheet" href="./styles.css">
+  <meta name="description" content="乡行共创是面向乡村文旅的AI规划与资源匹配网站，支持路线生成、村镇库、预算拆分、动态地图和申报入库闭环。">
+  <meta name="theme-color" content="#3f6f57">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="乡行共创 · AI乡村文旅规划台">
+  <meta property="og:description" content="用AI、天气、路线估算和村镇数据库生成可执行的乡村文旅路线。">
+  <title>乡行共创 · AI乡村文旅规划台</title>
+  <link rel="preconnect" href="https://images.unsplash.com">
+  <link rel="preconnect" href="https://webrd01.is.autonavi.com">
+  <link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="./styles.css">
   <script src="./vendor/lucide/lucide.min.js" defer></script>
   <script src="./vendor/leaflet/leaflet.js" defer></script>
-<script src="./data.js" defer></script>
-<script src="./services.js" defer></script>
-<script src="./client.js" defer></script>
+  <script src="./data.js" defer></script>
+  <script src="./services.js" defer></script>
+  <script src="./client.js" defer></script>
 </head>
 <body>
+  <a class="skip-link" href="#app">跳到主要内容</a>
   <header class="topbar">
-    <button class="brand" data-view="planner" aria-label="回到规划台">
+    <button class="brand" type="button" data-view="planner" aria-label="回到规划台">
       <span class="brand-mark">乡</span>
       <span>
         <strong>乡行共创</strong>
@@ -23,16 +30,16 @@
       </span>
     </button>
     <nav class="main-nav" aria-label="主导航">
-      <button class="nav-btn" data-view="planner"><i data-lucide="route"></i><span>规划台</span></button>
-      <button class="nav-btn" data-view="villages"><i data-lucide="map"></i><span>村镇库</span></button>
-      <button class="nav-btn" data-view="resources"><i data-lucide="warehouse"></i><span>资源匹配</span></button>
-      <button class="nav-btn" data-view="bookings"><i data-lucide="clipboard-list"></i><span>需求记录</span></button>
-      <button class="nav-btn" data-view="evidence"><i data-lucide="chart-no-axes-combined"></i><span>数据依据</span></button>
-      <a class="nav-link-btn" id="submissionPortalLink" href="http://127.0.0.1:5184/" target="_blank" rel="noopener"><i data-lucide="file-plus-2"></i><span>入库申报</span></a>
+      <button class="nav-btn" type="button" data-view="planner"><i data-lucide="route"></i><span>规划台</span></button>
+      <button class="nav-btn" type="button" data-view="villages"><i data-lucide="map"></i><span>村镇库</span></button>
+      <button class="nav-btn" type="button" data-view="resources"><i data-lucide="warehouse"></i><span>资源匹配</span></button>
+      <button class="nav-btn" type="button" data-view="bookings"><i data-lucide="clipboard-list"></i><span>需求记录</span></button>
+      <button class="nav-btn" type="button" data-view="evidence"><i data-lucide="chart-no-axes-combined"></i><span>数据依据</span></button>
+      <a class="nav-link-btn" id="submissionPortalLink" href="#" target="_blank" rel="noopener noreferrer"><i data-lucide="file-plus-2"></i><span>入库申报</span></a>
     </nav>
   </header>
 
-  <main id="app" class="app-shell" aria-live="polite"></main>
+  <main id="app" class="app-shell" tabindex="-1"></main>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <div id="modalRoot"></div>
