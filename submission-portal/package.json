@@ -1,0 +1,13 @@
+{
+  "name": "rural-culture-submission",
+  "version": "1.0.0",
+  "private": true,
+  "description": "乡村文旅资源入库申报副网站",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js && node --check app.js"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

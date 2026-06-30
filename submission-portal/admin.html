@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>乡村文旅申报审核台</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="./vendor/lucide/lucide.min.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body data-page="admin">
+  <header class="site-header">
+    <nav class="topbar">
+      <a class="brand" href="./admin.html">
+        <span class="brand-mark">审</span>
+        <span>乡村文旅申报审核台</span>
+      </a>
+      <div class="nav-actions">
+        <a href="./">公开申报页</a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero admin-hero">
+      <div class="hero-copy">
+        <span class="eyebrow">本地管理入口</span>
+        <h1>审核村镇申报，确认后再进入主站村镇库</h1>
+        <p>这个页面只用于本地管理：核验联系人、图片授权、地址与体验项目，再决定是否允许主站同步入库。</p>
+      </div>
+      <div class="hero-panel">
+        <div><strong id="submissionCount">0</strong><span>份申报</span></div>
+        <div><strong id="approvedCount">0</strong><span>可入库</span></div>
+        <div><strong id="pendingCount">0</strong><span>待审核</span></div>
+      </div>
+    </section>
+
+    <section class="admin-section" id="admin">
+      <div class="admin-head">
+        <div>
+          <span class="eyebrow">审核口令</span>
+          <h1>申报记录</h1>
+        </div>
+        <div class="admin-actions">
+          <label class="token-field">
+            <span>本地口令</span>
+            <input id="adminToken" type="password" autocomplete="current-password" placeholder="默认 local-review">
+          </label>
+          <button id="refreshAdmin" class="secondary-button"><i data-lucide="refresh-cw"></i><span>刷新</span></button>
+          <button id="exportApproved" class="primary-button"><i data-lucide="download"></i><span>导出可入库 JSON</span></button>
+        </div>
+      </div>
+      <div id="adminList" class="admin-list"></div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status"></div>
+</body>
+</html>

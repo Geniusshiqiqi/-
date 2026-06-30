@@ -1,0 +1,14 @@
+{
+  "name": "rural-culture-travel-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "乡行共创：AI乡村文旅规划与资源匹配网站",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "check": "node --check server.js && node --check data.js && node --check services.js && node --check app.js"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

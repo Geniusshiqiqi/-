@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>乡村文旅资源入库申报</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="./vendor/lucide/lucide.min.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <nav class="topbar">
+      <a class="brand" href="#submit">
+        <span class="brand-mark">乡</span>
+        <span>乡村文旅资源入库申报</span>
+      </a>
+      <div class="nav-actions">
+        <a href="#submit">填写申报</a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero" id="submit">
+      <div class="hero-copy">
+        <span class="eyebrow">村镇自荐入口</span>
+        <h1>把乡村的真实特色整理成可查询、可规划的文旅资料</h1>
+        <p>提交内容会先进入待审核库，审核后才会进入展示库。联系人仅用于后台核验，不会在游客页面公开。</p>
+      </div>
+      <div class="hero-panel">
+        <div><strong id="submissionCount">0</strong><span>份申报</span></div>
+        <div><strong id="approvedCount">0</strong><span>可入库</span></div>
+        <div><strong>SQLite</strong><span>本地保存</span></div>
+      </div>
+    </section>
+
+    <section class="content-grid">
+      <form id="submissionForm" class="submission-form" enctype="multipart/form-data">
+        <section class="form-section">
+          <div class="section-title">
+            <i data-lucide="map-pin"></i>
+            <div>
+              <h2>基础信息</h2>
+              <p>用于确定村镇位置和展示名称。</p>
+            </div>
+          </div>
+          <div class="field-grid">
+            <label><span>村镇/景区名称 *</span><input name="villageName" required placeholder="如：西江千户苗寨"></label>
+            <label><span>所在省份 *</span><input name="province" required placeholder="如：贵州"></label>
+            <label><span>市县/区 *</span><input name="city" required placeholder="如：黔东南州雷山县"></label>
+            <label><span>详细地址</span><input name="address" placeholder="乡镇、村组或景区入口"></label>
+            <label><span>高德经度</span><input name="lng" inputmode="decimal" placeholder="如：108.174"></label>
+            <label><span>高德纬度</span><input name="lat" inputmode="decimal" placeholder="如：26.494"></label>
+          </div>
+        </section>
+
+        <section class="form-section">
+          <div class="section-title">
+            <i data-lucide="sparkles"></i>
+            <div>
+              <h2>特色资源</h2>
+              <p>选择已有标签，并补充村里真正拿得出手的内容。</p>
+            </div>
+          </div>
+          <div class="tag-grid" id="tagGrid"></div>
+          <label class="wide"><span>一句话特色 *</span><input name="summary" required placeholder="如：苗族银饰、吊脚楼夜景与酸汤鱼体验"></label>
+          <label class="wide"><span>核心亮点 *</span><textarea name="highlights" required rows="4" placeholder="每行一条：非遗、古建、农事、风景、民宿、节庆等"></textarea></label>
+          <label class="wide"><span>可体验项目</span><textarea name="experiences" rows="4" placeholder="每行一条：项目名称 / 时长 / 价格或是否免费 / 是否需要预约"></textarea></label>
+          <label class="wide"><span>特产与农产品</span><textarea name="products" rows="3" placeholder="如：茶叶、腊肉、银饰、刺绣、果蔬采摘"></textarea></label>
+        </section>
+
+        <section class="form-section">
+          <div class="section-title">
+            <i data-lucide="bus"></i>
+            <div>
+              <h2>接待与交通</h2>
+              <p>帮助游客判断能不能真正去、怎么去、适合谁去。</p>
+            </div>
+          </div>
+          <div class="field-grid">
+            <label><span>适合人群</span><input name="audience" placeholder="如：亲子、研学、摄影、康养、团建"></label>
+            <label><span>建议停留</span><select name="stayNights"><option value="0">半日/一日</option><option value="1" selected>1晚</option><option value="2">2晚</option><option value="3">3晚以上</option></select></label>
+            <label><span>日接待能力</span><select name="capacity"><option>低</option><option selected>中</option><option>高</option></select></label>
+            <label><span>最近交通节点</span><input name="transportNode" placeholder="如：雷山汽车站约30分钟"></label>
+          </div>
+          <label class="wide"><span>住宿/餐饮/停车/厕所等配套</span><textarea name="facilities" rows="4" placeholder="如：民宿20间、餐饮10家、停车场1处、公共厕所2处"></textarea></label>
+          <label class="wide"><span>目前痛点或需要平台帮助展示的内容</span><textarea name="painPoints" rows="3" placeholder="如：游客只打卡不停留、非遗体验曝光少、农产品缺少转化场景"></textarea></label>
+        </section>
+
+        <section class="form-section">
+          <div class="section-title">
+            <i data-lucide="image-up"></i>
+            <div>
+              <h2>图片资料</h2>
+              <p>最多上传 8 张，建议包含村景、体验项目、产品、住宿或公共空间。</p>
+            </div>
+          </div>
+          <label class="upload-box">
+            <input id="photoInput" name="photos" type="file" accept="image/*" multiple>
+            <i data-lucide="upload-cloud"></i>
+            <span>选择图片</span>
+          </label>
+          <div id="photoPreview" class="photo-preview"></div>
+        </section>
+
+        <section class="form-section">
+          <div class="section-title">
+            <i data-lucide="shield-check"></i>
+            <div>
+              <h2>联系人与授权</h2>
+              <p>联系人仅后台可见，用于核验资料。</p>
+            </div>
+          </div>
+          <div class="field-grid">
+            <label><span>联系人 *</span><input name="contactName" required placeholder="姓名或单位"></label>
+            <label><span>联系方式 *</span><input name="contactPhone" required placeholder="电话/微信/邮箱"></label>
+          </div>
+          <label class="check-row">
+            <input name="permission" type="checkbox" required>
+            <span>确认提交内容与图片可用于本平台的资料整理、路线生成和村镇展示；公开前可进行审核与修改。</span>
+          </label>
+        </section>
+
+        <div class="submit-bar">
+          <button type="reset" class="secondary-button">清空</button>
+          <button type="submit" class="primary-button"><i data-lucide="send"></i><span>提交入库申报</span></button>
+        </div>
+      </form>
+
+      <aside class="side-panel">
+        <section>
+          <h2>审核流程</h2>
+          <ol>
+            <li>资料进入待审核库</li>
+            <li>后台核验联系人与图片授权</li>
+            <li>AI/规则整理为标准村镇画像</li>
+            <li>审核通过后导入主站村镇库</li>
+          </ol>
+        </section>
+        <section>
+          <h2>公开边界</h2>
+          <p>游客端只展示村镇特色、体验、交通与资源信息；联系方式、后台备注和审核状态不对外公开。</p>
+        </section>
+      </aside>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status"></div>
+</body>
+</html>
