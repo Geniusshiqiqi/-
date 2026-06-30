@@ -5,7 +5,7 @@
   "description": "乡村文旅资源入库申报副网站",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check app.js"
+    "check": "node --check server.js && node --check client.js"
   },
   "engines": {
     "node": "24.x"

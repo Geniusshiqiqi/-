@@ -3,3 +3,5 @@ data/*.sqlite
 data/*.sqlite-*
 logs/
 node_modules/
+
+.vercel
