@@ -1,7 +1,6 @@
 const API_BASE = (() => {
-  const currentHost = window.location.host;
-  const isAppServer = currentHost === "127.0.0.1:5174" || currentHost === "localhost:5174";
-  return isAppServer ? "" : "http://127.0.0.1:5174";
+  if (window.location.protocol === "file:") return "http://127.0.0.1:5174";
+  return "";
 })();
 
 const Api = {

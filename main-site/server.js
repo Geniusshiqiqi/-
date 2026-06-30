@@ -1,5 +1,6 @@
 const http = require("http");
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const { DatabaseSync } = require("node:sqlite");
 
@@ -8,13 +9,14 @@ const RuralData = require("./data.js");
 loadEnv();
 
 const root = __dirname;
-const dataDir = path.join(root, "data");
+const isVercel = Boolean(process.env.VERCEL);
+const dataDir = isVercel ? path.join(os.tmpdir(), "rural-wenlv-main-data") : path.join(root, "data");
 const dbPath = path.join(dataDir, "rural.sqlite");
 const port = Number(process.env.PORT || 5174);
 const submissionPortalUrl = process.env.SUBMISSION_PORTAL_URL || "http://127.0.0.1:5184/";
 const submissionPortalDir = process.env.SUBMISSION_PORTAL_DIR || path.resolve(root, "..", "乡村文旅申报入口");
 const submissionAdminToken = process.env.SUBMISSION_ADMIN_TOKEN || process.env.ADMIN_TOKEN || "local-review";
-const submittedCoverDir = path.join(root, "assets", "submitted-covers");
+const submittedCoverDir = isVercel ? path.join(os.tmpdir(), "rural-wenlv-submitted-covers") : path.join(root, "assets", "submitted-covers");
 
 fs.mkdirSync(dataDir, { recursive: true });
 fs.mkdirSync(submittedCoverDir, { recursive: true });
@@ -60,10 +62,17 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(port, "127.0.0.1", () => {
-  console.log(`乡行共创已启动：http://127.0.0.1:${port}/`);
-  console.log(`数据库位置：${dbPath}`);
-});
+if (isVercel) {
+  server.listen(port, () => {
+    console.log(`乡行共创已启动：Vercel Node server on ${port}`);
+    console.log(`数据库位置：${dbPath}`);
+  });
+} else {
+  server.listen(port, "127.0.0.1", () => {
+    console.log(`乡行共创已启动：http://127.0.0.1:${port}/`);
+    console.log(`数据库位置：${dbPath}`);
+  });
+}
 
 async function handleApi(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/bootstrap") {

@@ -1,13 +1,15 @@
 const http = require("http");
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const { DatabaseSync } = require("node:sqlite");
 
 const root = __dirname;
+const isVercel = Boolean(process.env.VERCEL);
 const port = Number(process.env.PORT || 5184);
 const adminToken = process.env.ADMIN_TOKEN || process.env.SUBMISSION_ADMIN_TOKEN || "local-review";
-const dataDir = path.join(root, "data");
-const uploadDir = path.join(root, "uploads");
+const dataDir = isVercel ? path.join(os.tmpdir(), "rural-wenlv-submission-data") : path.join(root, "data");
+const uploadDir = isVercel ? path.join(os.tmpdir(), "rural-wenlv-submission-uploads") : path.join(root, "uploads");
 const dbPath = path.join(dataDir, "submissions.sqlite");
 
 fs.mkdirSync(dataDir, { recursive: true });
@@ -40,10 +42,17 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(port, "127.0.0.1", () => {
-  console.log(`乡村文旅申报入口已启动：http://127.0.0.1:${port}/`);
-  console.log(`数据库位置：${dbPath}`);
-});
+if (isVercel) {
+  server.listen(port, () => {
+    console.log(`乡村文旅申报入口已启动：Vercel Node server on ${port}`);
+    console.log(`数据库位置：${dbPath}`);
+  });
+} else {
+  server.listen(port, "127.0.0.1", () => {
+    console.log(`乡村文旅申报入口已启动：http://127.0.0.1:${port}/`);
+    console.log(`数据库位置：${dbPath}`);
+  });
+}
 
 async function handleApi(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/stats") {
