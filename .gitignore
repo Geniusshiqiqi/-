@@ -7,5 +7,6 @@ uploads/
 *.sqlite-*
 *.log
 node_modules/
+.codex-temp/
 .DS_Store
 Thumbs.db
