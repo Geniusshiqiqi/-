@@ -31,6 +31,7 @@ const State = {
   },
   currentPlan: null,
   villageFilter: "all",
+  villageTagFilter: "all",
   villageQuery: "",
   resourceFilter: "all",
 };
@@ -54,9 +55,7 @@ async function initApp() {
       ...bootstrap,
       resourceAssets: bootstrap.resources,
     };
-    State.currentPlan = LocalPlanner.createPlan(State.form);
   } catch (error) {
-    State.currentPlan = LocalPlanner.createPlan(State.form);
     toast(`后端暂不可用，已进入本地模式：${error.message}`);
   } finally {
     State.ready = true;
@@ -161,9 +160,7 @@ function bindView() {
 }
 
 function renderPlanner() {
-  const plan = State.currentPlan || LocalPlanner.createPlan(State.form);
-  const villages = plan.villages.map((item) => item.name).join("、");
-  const heroMetrics = planHeroMetrics(plan);
+  const plan = State.currentPlan;
   return `
     <section class="planner-grid">
       <aside class="control-panel">
@@ -182,7 +179,7 @@ function renderPlanner() {
             <i data-lucide="${State.generating ? "loader-circle" : "sparkles"}"></i>
             <span>${State.generating ? "正在生成..." : "生成可执行路线"}</span>
           </button>
-          <small>AI会结合天气、路线、预算和乡村资源重新生成方案。</small>
+          <small>${plan ? "你可以继续调整条件，点击生成后再刷新路线。" : "当前不会预设推荐村镇，点击生成后再按你的需求匹配地点。"}</small>
         </div>
         ${renderPersonaPicker()}
         ${renderTripControls()}
@@ -190,38 +187,143 @@ function renderPlanner() {
       </aside>
 
       <section class="result-stage">
-        <div class="visual-band">
-          <img ${imageAttrs(plan.villages[0]?.cover || State.data.villages[0]?.cover, `${plan.villages[0]?.name || "乡村"}图像`)} loading="eager">
-          <div class="visual-overlay">
-            <span>${escapeHtml(plan.persona?.name || "智能路线")}</span>
-            <strong>${escapeHtml(villages || "等待生成")}</strong>
-            <small>${escapeHtml(plan.summary || plan.title)}</small>
-            <div class="hero-metrics">
-              ${heroMetrics.map((item) => `
-                <div>
-                  <i data-lucide="${escapeAttr(item.icon)}"></i>
-                  <span>${escapeHtml(item.label)}</span>
-                  <strong>${escapeHtml(item.value)}</strong>
-                </div>
-              `).join("")}
-            </div>
-          </div>
-        </div>
-        ${renderPlanSummary(plan)}
-        ${renderRouteHealth(plan)}
-        ${renderMapAndLiveInfo(plan)}
-        ${renderDayTimeline(plan)}
+        ${plan ? renderPlannerResult(plan) : renderPlannerIdle()}
       </section>
 
       <aside class="insight-rail">
-        ${renderBudgetBox(plan)}
-        ${renderImpactBox(plan)}
-        ${renderChecklistBox(plan)}
-        ${renderRiskBox(plan)}
-        ${renderSavedPlans()}
+        ${plan ? renderPlannerRail(plan) : renderPlannerIdleRail()}
       </aside>
     </section>
   `;
+}
+
+function renderPlannerResult(plan) {
+  const villages = plan.villages.map((item) => item.name).join("、");
+  const heroMetrics = planHeroMetrics(plan);
+  return `
+    <div class="visual-band">
+      <img ${imageAttrs(plan.villages[0]?.cover || State.data.villages[0]?.cover, `${plan.villages[0]?.name || "乡村"}图像`)} loading="eager">
+      <div class="visual-overlay">
+        <span>${escapeHtml(plan.persona?.name || "智能路线")}</span>
+        <strong>${escapeHtml(villages || "等待生成")}</strong>
+        <small>${escapeHtml(plan.summary || plan.title)}</small>
+        <div class="hero-metrics">
+          ${heroMetrics.map((item) => `
+            <div>
+              <i data-lucide="${escapeAttr(item.icon)}"></i>
+              <span>${escapeHtml(item.label)}</span>
+              <strong>${escapeHtml(item.value)}</strong>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    </div>
+    ${renderPlanSummary(plan)}
+    ${renderRouteHealth(plan)}
+    ${renderMapAndLiveInfo(plan)}
+    ${renderDayTimeline(plan)}
+  `;
+}
+
+function renderPlannerRail(plan) {
+  return `
+    ${renderBudgetBox(plan)}
+    ${renderImpactBox(plan)}
+    ${renderChecklistBox(plan)}
+    ${renderRiskBox(plan)}
+    ${renderSavedPlans()}
+  `;
+}
+
+function renderPlannerIdle() {
+  const scale = getCatalogScale();
+  const persona = State.data.personas.find((item) => item.id === State.form.personaId) || {};
+  return `
+    <div class="visual-band planner-idle-band">
+      <img ${imageAttrs(window.RuralData?.heroImage || State.data.villages[0]?.cover, "乡村文旅首页氛围图")} loading="eager">
+      <div class="visual-overlay">
+        <span>${escapeHtml(persona.name || "乡村文旅智能规划")}</span>
+        <strong>先说需求，再匹配合适的乡村路线</strong>
+        <small>系统会结合人群、预算、节奏、体验偏好和补充需求，从村镇库里筛出更合适的地方。</small>
+        <div class="hero-metrics">
+          <div><i data-lucide="map"></i><span>村镇库</span><strong>${scale.villages}个</strong></div>
+          <div><i data-lucide="map-pinned"></i><span>文旅点位</span><strong>${scale.spots}个</strong></div>
+          <div><i data-lucide="warehouse"></i><span>资源条目</span><strong>${scale.resources}条</strong></div>
+          <div><i data-lucide="sparkles"></i><span>当前状态</span><strong>待生成</strong></div>
+        </div>
+      </div>
+    </div>
+    <section class="planner-empty-card">
+      <div class="card-title"><i data-lucide="clipboard-pen"></i><h2>先完善你的出行需求</h2></div>
+      <p>左侧填写条件后，点击“生成可执行路线”，系统才会把对应的乡村和路线结果放出来，不再默认先推荐某个村。</p>
+      <div class="planner-demand-chips">${renderPlannerDemandChips()}</div>
+      <div class="planner-empty-grid">
+        <article>
+          <strong>1. 明确人群与预算</strong>
+          <span>先锁定大学生研学、亲子农事、乡居慢游或产业调研，再给出合理人均预算。</span>
+        </article>
+        <article>
+          <strong>2. 补充真实偏好</strong>
+          <span>可以直接写“想去蟳埔村”“不要爬山”“老人同行”这类需求，系统会优先理解这些条件。</span>
+        </article>
+        <article>
+          <strong>3. 再生成路线</strong>
+          <span>生成后才展示路线地图、日程安排、预算拆分和村镇组合，更符合真实用户决策流程。</span>
+        </article>
+      </div>
+    </section>
+  `;
+}
+
+function renderPlannerIdleRail() {
+  const scale = getCatalogScale();
+  return `
+    <section class="rail-card">
+      <div class="card-title"><i data-lucide="sliders-horizontal"></i><h2>当前需求快照</h2></div>
+      <div class="planner-side-list">
+        <div><span>出行人群</span><strong>${escapeHtml(State.data.personas.find((item) => item.id === State.form.personaId)?.name || "未选择")}</strong></div>
+        <div><span>路线天数</span><strong>${State.form.days}天</strong></div>
+        <div><span>人均预算</span><strong>¥${State.form.budget}</strong></div>
+        <div><span>路线节奏</span><strong>${escapeHtml({ balanced: "均衡", slow: "慢游", compact: "紧凑" }[State.form.pace] || State.form.pace)}</strong></div>
+        <div><span>优先省份</span><strong>${escapeHtml(State.form.region === "all" ? "不限" : State.form.region)}</strong></div>
+        <div><span>默认人数</span><strong>${State.form.groupSize}人</strong></div>
+      </div>
+    </section>
+    <section class="rail-card">
+      <div class="card-title"><i data-lucide="database"></i><h2>当前数据池</h2></div>
+      <div class="planner-side-list">
+        <div><span>可匹配村镇</span><strong>${scale.villages}个</strong></div>
+        <div><span>可挂接点位</span><strong>${scale.spots}个</strong></div>
+        <div><span>资源素材</span><strong>${scale.resources}条</strong></div>
+      </div>
+      <div class="storage-note">
+        <i data-lucide="search-check"></i>
+        <span>首页先收需求，村镇库再承接结果，能减少“先推地点、后改需求”的割裂感。</span>
+      </div>
+    </section>
+    ${renderSavedPlans()}
+  `;
+}
+
+function renderPlannerDemandChips() {
+  const noteSummary = (State.form.note || "").trim();
+  const chips = [
+    State.form.region === "all" ? "全国范围匹配" : `${State.form.region}优先`,
+    `${State.form.days}天`,
+    `¥${State.form.budget}/人`,
+    `${State.form.groupSize}人`,
+    ...State.form.tags.map((id) => State.data.experienceTags.find((tag) => tag.id === id)?.name || id),
+    noteSummary ? `补充需求：${noteSummary.length > 16 ? `${noteSummary.slice(0, 16)}...` : noteSummary}` : "",
+  ].filter(Boolean);
+  return chips.map((item) => `<span>${escapeHtml(item)}</span>`).join("");
+}
+
+function getCatalogScale() {
+  return {
+    villages: State.data.villages.length,
+    spots: State.data.villages.reduce((sum, village) => sum + (village.spots || []).length, 0),
+    resources: State.data.resources.length,
+  };
 }
 
 function renderRuntimeStatus() {
@@ -633,7 +735,7 @@ function bindPlanner() {
       State.form.pace = persona.pace;
       State.form.tags = [...persona.preferences];
       State.form.targetVillageId = "";
-      State.currentPlan = LocalPlanner.createPlan(State.form);
+      State.currentPlan = null;
       render({ scroll: false });
     });
   });
@@ -643,7 +745,7 @@ function bindPlanner() {
       State.form.tags = toggleArrayItem(State.form.tags, button.dataset.tag);
       if (!State.form.tags.length) State.form.tags = ["fieldwork"];
       State.form.targetVillageId = "";
-      State.currentPlan = LocalPlanner.createPlan(State.form);
+      State.currentPlan = null;
       render({ scroll: false });
     });
   });
@@ -674,7 +776,7 @@ function bindFormControls() {
       State.form.targetVillageId = "";
     }
     syncFormFromControls();
-    State.currentPlan = LocalPlanner.createPlan(State.form);
+    State.currentPlan = null;
     render({ scroll: false });
   };
 
@@ -836,6 +938,7 @@ async function saveCurrentPlan() {
 function renderVillages() {
   const portalUrl = getSubmissionPortalUrl();
   const provinces = ["all", ...new Set(State.data.villages.map((item) => item.province))];
+  const tagOptions = ["all", ...State.data.experienceTags.map((item) => item.id)];
   const filtered = getFilteredVillages();
   const provinceCount = new Set(State.data.villages.map((item) => item.province)).size;
   const spotCount = filtered.reduce((sum, village) => sum + (village.spots || []).length, 0);
@@ -866,6 +969,10 @@ function renderVillages() {
             <select id="villageProvince">${provinces.map((province) => `<option value="${escapeAttr(province)}"${State.villageFilter === province ? " selected" : ""}>${province === "all" ? "全部" : escapeHtml(province)}</option>`).join("")}</select>
           </label>
           <label class="compact-select">
+            <span>体验类型</span>
+            <select id="villageTagFilter">${tagOptions.map((tagId) => `<option value="${escapeAttr(tagId)}"${State.villageTagFilter === tagId ? " selected" : ""}>${tagId === "all" ? "全部类型" : escapeHtml(State.data.experienceTags.find((tag) => tag.id === tagId)?.name || tagId)}</option>`).join("")}</select>
+          </label>
+          <label class="compact-select">
             <span>搜索</span>
             <input id="villageSearch" type="text" autocomplete="off" placeholder="村名 / 标签 / 亮点" value="${escapeAttr(State.villageQuery)}">
           </label>
@@ -891,9 +998,25 @@ function getFilteredVillages() {
   const q = State.villageQuery.trim().toLowerCase();
   return State.data.villages.filter((village) => {
     const provinceOk = State.villageFilter === "all" || village.province === State.villageFilter;
+    const tagOk = State.villageTagFilter === "all" || (village.tags || []).includes(State.villageTagFilter);
+    const tagNames = (village.tags || []).map((id) => State.data.experienceTags.find((tag) => tag.id === id)?.name || id);
     const spotText = (village.spots || []).flatMap((spot) => [spot.name, spot.type, spot.desc, ...(spot.tags || [])]);
-    const textOk = !q || [village.name, village.province, village.city, village.address, village.transportNode, village.label, ...(village.tags || []), ...(village.highlights || []), ...spotText].join(" ").toLowerCase().includes(q);
-    return provinceOk && textOk;
+    const textOk = !q || [
+      village.name,
+      village.province,
+      village.city,
+      village.address,
+      village.transportNode,
+      village.label,
+      village.fallbackVisual,
+      ...(village.tags || []),
+      ...tagNames,
+      ...(village.highlights || []),
+      ...(village.resources || []),
+      ...(village.products || []),
+      ...spotText,
+    ].join(" ").toLowerCase().includes(q);
+    return provinceOk && tagOk && textOk;
   });
 }
 
@@ -937,6 +1060,10 @@ function bindVillages() {
   document.querySelector("#syncApprovedSubmissions")?.addEventListener("click", syncApprovedSubmissions);
   document.querySelector("#villageProvince")?.addEventListener("change", (event) => {
     State.villageFilter = event.target.value;
+    render();
+  });
+  document.querySelector("#villageTagFilter")?.addEventListener("change", (event) => {
+    State.villageTagFilter = event.target.value;
     render();
   });
   const villageSearch = document.querySelector("#villageSearch");
@@ -987,7 +1114,7 @@ async function syncApprovedSubmissions() {
       resourceAssets: bootstrap.resources,
     };
     updateSubmissionPortalLink();
-    State.currentPlan = LocalPlanner.createPlan(State.form);
+    State.currentPlan = null;
     toast(result.message || "申报数据已同步入库");
   } catch (error) {
     toast(`同步失败：${error.message}`);

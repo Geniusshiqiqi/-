@@ -322,6 +322,14 @@ const LocalPlanner = {
       zhaoxing: ["肇兴侗寨", "黎平肇兴", "肇兴"],
       hongcun: ["宏村"],
       xidi: ["西递村", "西递"],
+      xunpu: ["蟳埔村", "蟳埔", "泉州蟳埔", "簪花村"],
+      basha: ["岜沙苗寨", "岜沙", "从江岜沙"],
+      "chengyang-bazhai": ["程阳八寨", "程阳", "三江侗寨", "程阳侗寨"],
+      peitian: ["培田古村", "培田", "连城培田"],
+      nuodeng: ["诺邓村", "诺邓", "云龙诺邓"],
+      dongziguan: ["东梓关村", "东梓关", "富阳东梓关"],
+      chenjiapu: ["陈家铺村", "陈家铺", "松阳陈家铺"],
+      tangan: ["堂安侗寨", "堂安", "黎平堂安"],
     };
     const values = [village.name, ...(manual[village.id] || [])];
     const stripped = String(village.name || "").replace(suffixPattern, "");
@@ -352,6 +360,14 @@ const LocalPlanner = {
       zhaoxing: ["侗族大歌", "侗歌", "鼓楼", "蓝染", "侗族", "长桌饭", "稻鱼鸭", "肇兴"],
       hongcun: ["月沼", "南湖", "徽州", "水系", "毛豆腐", "宏村"],
       xidi: ["牌坊", "胡文光", "徽派", "明清街巷", "西递"],
+      xunpu: ["簪花", "蚵壳厝", "海丝", "渔村", "海鲜", "蟳埔"],
+      basha: ["火枪", "岜沙", "剃头", "苗寨", "古林", "火塘"],
+      "chengyang-bazhai": ["风雨桥", "鼓楼", "油茶", "侗布", "程阳"],
+      peitian: ["客家", "家风", "古厝", "祠堂", "书院", "培田"],
+      nuodeng: ["火腿", "盐井", "白族", "石阶", "诺邓"],
+      dongziguan: ["乡建", "白墙", "富春江", "回迁", "东梓关"],
+      chenjiapu: ["先锋书店", "书店", "山村", "老屋改造", "陈家铺"],
+      tangan: ["梯田", "堂安", "侗寨", "木构", "山雾"],
     };
     const values = [
       ...(manual[village.id] || []),

@@ -681,6 +681,98 @@ input[type="range"] {
   white-space: nowrap;
 }
 
+.planner-idle-band {
+  min-height: 332px;
+}
+
+.planner-empty-card {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(180deg, rgba(255, 253, 248, 0.96), rgba(223, 234, 221, 0.4)),
+    var(--paper);
+  box-shadow: var(--shadow);
+}
+
+.planner-empty-card p {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.planner-demand-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.planner-demand-chips span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 7px 12px;
+  border: 1px solid rgba(63, 111, 87, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #365744;
+  font-size: 12px;
+  font-weight: 760;
+  box-shadow: var(--shadow-soft);
+}
+
+.planner-empty-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.planner-empty-grid article {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid rgba(221, 213, 200, 0.86);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: var(--shadow-soft);
+}
+
+.planner-empty-grid strong {
+  font-size: 15px;
+}
+
+.planner-empty-grid span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.planner-side-list {
+  display: grid;
+  gap: 8px;
+}
+
+.planner-side-list div {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid rgba(221, 213, 200, 0.88);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.84);
+}
+
+.planner-side-list span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.planner-side-list strong {
+  font-size: 15px;
+  line-height: 1.35;
+}
+
 .summary-strip {
   display: grid;
   grid-template-columns: repeat(5, minmax(84px, 1fr));
@@ -2349,6 +2441,7 @@ input[type="range"] {
   .market-grid,
   .insight-rail,
   .hero-metrics,
+  .planner-empty-grid,
   .view-metrics,
   .location-panel,
   .modal-columns,
@@ -2382,6 +2475,7 @@ input[type="range"] {
   .tag-check-grid,
   .summary-strip,
   .hero-metrics,
+  .planner-empty-grid,
   .view-metrics,
   .impact-grid {
     grid-template-columns: 1fr;
